@@ -50,6 +50,15 @@ func GetSecExecve(cmd string, args []string, env []string) (int, []string, []str
 			return 0, args, env, err
 		}
 		if sb {
+			depth++
+			/* This allows 4 levels of binfmt rewrites before failing hard.
+			   https://github.com/torvalds/linux/blob/9d64bf433c53cab2f48a3fff7a1f2a696bc5229a/fs/exec.c#L1773-L1777
+			*/
+			if depth > 5 {
+				_ = unix.Close(f)
+				return 0, args, env, unix.ELOOP
+			}
+
 			ncmd, nargs, err = readScript(f, ncmd, nargs)
 			_ = unix.Close(f)
 			if err != nil {
@@ -58,13 +67,6 @@ func GetSecExecve(cmd string, args []string, env []string) (int, []string, []str
 			f, err = unix.Open(ncmd, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 			if err != nil {
 				return 0, args, env, fmt.Errorf("failed to open %s: %w", ncmd, err)
-			}
-			depth++
-			/* This allows 4 levels of binfmt rewrites before failing hard.
-			   https://github.com/torvalds/linux/blob/9d64bf433c53cab2f48a3fff7a1f2a696bc5229a/fs/exec.c#L1773-L1777
-			*/
-			if depth > 5 {
-				return 0, args, env, unix.ELOOP
 			}
 		} else {
 			break
