@@ -27,8 +27,8 @@ func readScript(f int, cmd string, args []string) (string, []string, error) {
 		line = strings.TrimSpace(line)
 		arr := strings.Split(line, " ")
 		if len(arr) > 0 {
-			nargs := append([]string{cmd}, arr[1:]...)
-			nargs = append(nargs, args...)
+			nargs := append(arr, cmd)
+			nargs = append(nargs, args[1:]...)
 			return arr[0], nargs, nil
 		}
 	}
@@ -70,6 +70,9 @@ func GetSecExecve(cmd string, args []string, env []string) (int, string, []strin
 				return 0, "", args, env, fmt.Errorf("failed to open %s: %w", ncmd, err)
 			}
 		} else {
+			if depth > 0 {
+				nargs[0] = ncmd
+			}
 			break
 		}
 	}
