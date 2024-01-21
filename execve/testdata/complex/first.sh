@@ -1,0 +1,1 @@
+#!testdata/basic/echo.sh

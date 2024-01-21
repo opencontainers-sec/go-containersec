@@ -1,0 +1,1 @@
+#!testdata/error/second.sh foo bar

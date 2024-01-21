@@ -1,0 +1,1 @@
+#!testdata/error/first.sh foo bar
