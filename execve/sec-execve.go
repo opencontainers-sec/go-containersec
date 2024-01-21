@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/opencontainers-sec/go-containersec/execve/system"
+	"github.com/opencontainers-sec/go-containersec/path"
 	"golang.org/x/sys/unix"
 )
 
@@ -34,10 +35,10 @@ func readScript(f int, cmd string, args []string) (string, []string, error) {
 	return "", args, fmt.Errorf("failed to read script")
 }
 
-func GetSecExecve(cmd string, args []string, env []string) (int, []string, []string, error) {
+func GetSecExecve(cmd string, args []string, env []string) (int, string, []string, []string, error) {
 	f, err := unix.Open(cmd, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return 0, args, env, fmt.Errorf("failed to open %s: %w", cmd, err)
+		return 0, "", args, env, fmt.Errorf("failed to open %s: %w", cmd, err)
 	}
 
 	ncmd := cmd
@@ -47,7 +48,7 @@ func GetSecExecve(cmd string, args []string, env []string) (int, []string, []str
 		sb, err := isShebang(f)
 		if err != nil {
 			_ = unix.Close(f)
-			return 0, args, env, err
+			return 0, "", args, env, err
 		}
 		if sb {
 			depth++
@@ -56,17 +57,17 @@ func GetSecExecve(cmd string, args []string, env []string) (int, []string, []str
 			*/
 			if depth > 5 {
 				_ = unix.Close(f)
-				return 0, args, env, unix.ELOOP
+				return 0, "", args, env, unix.ELOOP
 			}
 
 			ncmd, nargs, err = readScript(f, ncmd, nargs)
 			_ = unix.Close(f)
 			if err != nil {
-				return 0, args, env, err
+				return 0, "", args, env, err
 			}
 			f, err = unix.Open(ncmd, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 			if err != nil {
-				return 0, args, env, fmt.Errorf("failed to open %s: %w", ncmd, err)
+				return 0, "", args, env, fmt.Errorf("failed to open %s: %w", ncmd, err)
 			}
 		} else {
 			break
@@ -75,15 +76,25 @@ func GetSecExecve(cmd string, args []string, env []string) (int, []string, []str
 
 	_, err = unix.Seek(f, 0, 0)
 	if err != nil {
-		return 0, args, env, err
+		_ = unix.Close(f)
+		return 0, "", args, env, err
 	}
-	return f, nargs, env, nil
+
+	return f, ncmd, nargs, env, nil
 }
 
 func Run(cmd string, args []string, env []string) error {
-	sfd, sargs, senv, err := GetSecExecve(cmd, args, env)
+	sfd, scmd, sargs, senv, err := GetSecExecve(cmd, args, env)
 	if err != nil {
 		return err
+	}
+	jail, err := path.IsPathInJail(scmd)
+	if err != nil {
+		return err
+	}
+	if !jail {
+		_ = unix.Close(sfd)
+		return fmt.Errorf("can't find %s in the current file system", scmd)
 	}
 	return system.Fexecve(uintptr(sfd), sargs, senv)
 }

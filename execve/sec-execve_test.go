@@ -1,8 +1,6 @@
 package execve
 
 import (
-	"fmt"
-	"os"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -24,7 +22,7 @@ func TestGetSecExecve(t *testing.T) {
 			cmd:   "testdata/basic/echo.sh",
 			args:  []string{"hello", "world"},
 			env:   []string{},
-			scmd:  "/usr/bin/echo",
+			scmd:  "/bin/echo",
 			sargs: []string{"testdata/basic/echo.sh", "hello", "world"},
 			err:   false,
 		},
@@ -33,7 +31,7 @@ func TestGetSecExecve(t *testing.T) {
 			cmd:   "testdata/complex/first.sh",
 			args:  []string{"hello", "world"},
 			env:   []string{},
-			scmd:  "/usr/bin/echo",
+			scmd:  "/bin/echo",
 			sargs: []string{"testdata/basic/echo.sh", "testdata/complex/first.sh", "hello", "world"},
 			err:   false,
 		},
@@ -51,13 +49,13 @@ func TestGetSecExecve(t *testing.T) {
 			cmd:   "/bin/echo",
 			args:  []string{"hello", "world"},
 			env:   []string{},
-			scmd:  "/usr/bin/echo",
+			scmd:  "/bin/echo",
 			sargs: []string{"hello", "world"},
 			err:   false,
 		},
 	}
 	for _, tc := range testCases {
-		sfd, sargs, senv, err := GetSecExecve(tc.cmd, tc.args, tc.env)
+		sfd, scmd, sargs, senv, err := GetSecExecve(tc.cmd, tc.args, tc.env)
 		if tc.err && err == nil {
 			t.Fatalf("Failed to run %s: we should got an error.", tc.name)
 		}
@@ -69,12 +67,8 @@ func TestGetSecExecve(t *testing.T) {
 				t.Fatalf("Failed to get fd")
 			}
 			defer unix.Close(sfd)
-			link, err := os.Readlink("/proc/self/fd/" + fmt.Sprintf("%d", sfd))
-			if err != nil {
-				t.Fatalf("Failed to get link %s: %s", tc.name, err)
-			}
-			if link != tc.scmd {
-				t.Fatalf("Failed to get cmd %s: %s", tc.name, link)
+			if scmd != tc.scmd {
+				t.Fatalf("Failed to get cmd %s: expect %s, got %s", tc.name, tc.scmd, scmd)
 			}
 			if len(sargs) != len(tc.sargs) {
 				t.Fatalf("Failed to get args %s: %s", tc.name, sargs)
