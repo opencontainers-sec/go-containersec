@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/opencontainers-sec/go-containersec/execve/system"
@@ -36,12 +37,15 @@ func readScript(f int, cmd string, args []string) (string, []string, error) {
 }
 
 func GetSecExecve(cmd string, args []string, env []string) (int, string, []string, []string, error) {
-	f, err := unix.Open(cmd, unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	ncmd, err := exec.LookPath(cmd)
+	if err != nil {
+		return 0, "", args, env, fmt.Errorf("failed to locate %s: %w", cmd, err)
+	}
+	f, err := unix.Open(ncmd, unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return 0, "", args, env, fmt.Errorf("failed to open %s: %w", cmd, err)
 	}
 
-	ncmd := cmd
 	nargs := args[:]
 	depth := 0
 	for {
