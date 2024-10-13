@@ -41,7 +41,7 @@ func TestSecLookPath(t *testing.T) {
 	}
 }
 
-func TestTestSecLookPathInJail(t *testing.T) {
+func TestSecLookPathInJail(t *testing.T) {
 	blChroot := false
 	dir, err := os.MkdirTemp("/tmp", "jail-*")
 	if err != nil {
