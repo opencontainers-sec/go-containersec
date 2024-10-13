@@ -1,2 +1,2 @@
 # go-containersec
-a security module for container runtime
+a golang security module for container runtime
